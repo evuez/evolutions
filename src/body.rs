@@ -6,8 +6,11 @@ use std::f32::consts::PI;
 const MAX_SPEED: u8 = 100;
 
 
-struct Action {
-    name: String,
+enum Action {
+    FORWARD,
+    BACKWARD,
+    TURN_LEFT,
+    TURN_RIGHT,
 }
 
 struct Color {
@@ -16,22 +19,22 @@ struct Color {
     v: u8,
 }
 
-struct Pose {
-    x: f32,
-    y: f32,
-    d: f32,
+pub struct Pose {
+    pub x: f32,
+    pub y: f32,
+    pub d: f32,
 }
 
-struct Body {
+pub struct Body {
     name: Uuid,
     memory: Option<Vec<Action>>,
-    pose: Pose,
+    pub pose: Pose,
     color: Color,
     rng: XorShiftRng,
 }
 
 impl Body {
-    fn new() -> Body {
+    pub fn new() -> Body {
         let mut rng = XorShiftRng::from_seed([1, 2, 3, 4]);
 
         Body {
@@ -51,13 +54,21 @@ impl Body {
         }
     }
 
-    fn memorize(&mut self, action_name: &str) {
-        let action = Action { name: action_name.to_string() };
-
+    fn memorize(&mut self, action: Action) {
         match self.memory {
             Some(ref mut m) => m.push(action),
             None => self.memory = Some(vec![action])
         };
+    }
+
+    pub fn run(&mut self) {
+        match self.rng.gen::<u8>() {
+            10 ... 20 => self.forward(),
+            20 ... 30 => self.backward(),
+            30 ... 40 => self.turn_left(),
+            40 ... 50 => self.turn_right(),
+            _ => (),
+        }
     }
 
     fn speed(&mut self) -> u8 {
@@ -70,7 +81,7 @@ impl Body {
         self.pose.x += speed.cos();
         self.pose.y += speed.sin();
 
-        self.memorize("forward")
+        self.memorize(Action::FORWARD)
     }
 
     fn backward(&mut self) {
@@ -78,16 +89,22 @@ impl Body {
 
         self.pose.x -= speed.cos();
         self.pose.y -= speed.sin();
+
+        self.memorize(Action::BACKWARD)
     }
 
     fn turn_left(&mut self) {
         self.pose.d -= (self.speed() & (2 * PI as u8)) as f32;
         while self.pose.d < 0.0 { self.pose.d += 2.0 * PI }
+
+        self.memorize(Action::TURN_LEFT)
     }
 
     fn turn_right(&mut self) {
         self.pose.d += (self.speed() & (2 * PI as u8)) as f32;
         while self.pose.d > 2.0 * PI { self.pose.d -= 2.0 * PI }
+
+        self.memorize(Action::TURN_LEFT)
     }
 
     fn change_color(&mut self) {
