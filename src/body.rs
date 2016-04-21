@@ -1,5 +1,7 @@
 use uuid::Uuid;
 use rand::{XorShiftRng, SeedableRng, Rng};
+use rand::distributions::normal::Normal;
+use rand::distributions::Sample;
 use std::f32::consts::PI;
 
 
@@ -11,6 +13,12 @@ enum Action {
     BACKWARD,
     TURN_LEFT,
     TURN_RIGHT,
+}
+
+struct Choice {
+    id: u8,
+    weight: f64,
+    action: Action,
 }
 
 struct Color {
@@ -31,6 +39,7 @@ pub struct Body {
     pub pose: Pose,
     color: Color,
     rng: XorShiftRng,
+    choices: [Choice; 4],
 }
 
 impl Body {
@@ -50,7 +59,13 @@ impl Body {
                 s: rng.gen::<u8>(),
                 v: rng.gen::<u8>()
             },
-            rng: rng
+            rng: rng,
+            choices: [
+                Choice { action: Action::FORWARD, id: 1, weight: 1.0 },
+                Choice { action: Action::BACKWARD, id: 2, weight: 1.0 },
+                Choice { action: Action::TURN_LEFT, id: 3, weight: 1.0 },
+                Choice { action: Action::TURN_RIGHT, id: 4, weight: 1.0 },
+            ]
         }
     }
 
@@ -61,12 +76,25 @@ impl Body {
         };
     }
 
-    pub fn run(&mut self) {
-        match self.rng.gen::<u8>() {
-            10 ... 20 => self.forward(),
-            20 ... 30 => self.backward(),
-            30 ... 40 => self.turn_left(),
-            40 ... 50 => self.turn_right(),
+    fn pick(&mut self) -> Option<f64> {
+        let choice = self.rng.choose(&self.choices);
+        match choice {
+            Some(c) => Some(Normal::new(c.id as f64, c.weight).sample(&mut self.rng)),
+            None => None
+        }
+    }
+
+    pub fn tick(&mut self) {
+        let value = match self.pick() {
+            Some(c) => c.round() as u8,
+            None => return (),
+        };
+
+        match value {
+            1 => self.forward(),
+            2 => self.backward(),
+            3 => self.turn_left(),
+            4 => self.turn_right(),
             _ => (),
         }
     }
